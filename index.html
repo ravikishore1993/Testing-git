@@ -1,0 +1,137 @@
+<head><title>FB Chat !</title></head>
+<script type="text/javascript" src="xml2json.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+<script type="text/javascript"> 
+ 
+ var presence_roster_store;
+ var raw_data_store ;
+ var iq_test ="" ;
+ var iq_store = "";
+ var X2JS = new X2JS();
+ var access_token = "startAAAFs2Pg4ld0BABvD3s0JZANggZA1QaNiEwRfvztmXtVb8WUrFiGVpbBhxoSpLIJb17H707TT0L5jhAZBxcfQs3NUSftmtTWPsX34QuLZAQZDZD";
+ var message_temp = {} ;
+function connect_websocket()
+{ socket = new WebSocket("ws://127.0.0.1:1337"); 
+  socket.onopen = function() 
+   {socket.onmessage = message_control ; 
+    socket.send(access_token);
+    //socket.send("{presence : '1'}")
+   }
+
+}
+
+function message_control( raw_data )
+{ raw_data_store = raw_data ;
+  handle = undefined ; 
+  j_ob = X2JS.xml_str2json(raw_data.data);  // j_ob meaning json_object ; 
+  j_ob.raw = raw_data_store ; 
+  {if(  j_ob.presence !=undefined && j_ob.presence.toString() == '[object Object]' ) 				handle = presence_function ;
+  if(  j_ob.iq !=undefined &&  j_ob.iq.toString() == '[object Object]') 			handle = iq_function       ;
+  if( j_ob.message !=undefined && j_ob.message.toString() == '[object Object]'  ) 				handle = message_function  ;
+  handle(j_ob);	
+  }
+}
+
+function presence_function(j_obs)
+{  
+  if(document.getElementById(j_obs.presence._from) == null)
+{
+ test_element = document.createElement('div');
+ test_element.id = j_obs.presence._from;
+ if(j_obs.presence._type != "unavailable" )j_obs.presence._type="Available" ;
+ test_element.setAttribute("class",j_obs.presence._type) ;
+  test_element.innerHTML = "From:"+ j_obs.presence._from + "&nbsp Status : "+ j_obs.presence._type ;
+ if( test_element.innerHTML.indexOf('error')< 0)
+document.getElementById('presence').appendChild(test_element);
+}
+
+else
+
+{ 
+  test_element = document.getElementById(j_obs.presence._from) ;
+   //if( JSON.stringify(j_obs).indexOf('error')< 0)
+   {if(j_obs.presence._type != "unavailable" )j_obs.presence._type="Available" ;
+ test_element.setAttribute("class",j_obs.presence._type) ;
+  test_element.innerHTML = "From:"+ j_obs.presence._from + "&nbsp Status : "+ j_obs.presence._type ;
+ }
+   
+    }
+
+if(j_obs.presence.parsererror != undefined && j_obs.presence.parsererror.toString() == '[object Object]'  )
+ { 
+    presence_roster_store = X2JS.xml_str2json("<p>" + j_obs.raw.data + "</p>");
+    presence_roster_store = presence_roster_store.p ;
+    presence_roster = new Array(presence_roster_store.presence.length);
+    
+    for(x in presence_roster_store.presence){presence_roster[x] = new Object ;
+                                              presence_roster[x].presence = presence_roster_store.presence[x] ;
+                                              presence_function(presence_roster[x]);
+
+
+                                              }
+
+   }
+
+
+}
+
+function message_function(j_obs)
+{   
+
+  
+  if(JSON.stringify(j_obs).indexOf("body") > 0)
+ {test_element = document.createElement('div');
+   test_element.innerHTML = "From : " + j_obs.message._from + "&nbsp&nbsp Message : " + j_obs.message.body + "<br>"; 
+ if(  test_element.innerHTML != document.getElementById('message').lastChild.innerHTML )
+ {
+
+  document.getElementById('message').appendChild(test_element);
+ }
+ 
+ }
+  
+
+}
+
+function iq_function(j_obs)
+{  
+
+
+ test_element = document.createElement('div');
+  test_element.innerHTML = "To : "+ j_obs.iq['own-message']._to + "&nbsp; Message :" + j_obs.iq['own-message'].body ;
+ if(test_element.innerHTML.indexOf("To : undefined") <0  && test_element.innerHTML != iq_store)document.getElementById('iq').appendChild(test_element);
+ iq_store = test_element.innerHTML ;
+
+}
+
+function message_submit()
+{
+  json_packet = {};
+  json_packet.message={};
+  json_packet.message._to = document.getElementById('message_to').value;
+  json_packet.message.body = document.getElementById('message_area').value; 
+  socket.send( JSON.stringify(json_packet) );
+
+}
+
+
+
+
+
+connect_websocket();
+presence_call=setInterval(function(){socket.send("{presence : '1'}");},10000);
+clearInterval(presence_call);
+</script>
+<body>
+<div id='presence' name='presence'>Friends Online</div>
+<br><br><div id='message' name='message'>Messages</div>
+<br><br><div id='iq' name='iq'>IQ's</div><br><br><br>
+<div id='send_message'>
+ To:<input type="text" id="message_to" name="to"  />
+<br> Message : <textarea id="message_area" name="message_area" ></textarea> 
+ <button  name="submit" onclick = " message_submit() ">Submit</button>
+</div>
+
+</body>
+
+
